@@ -9,7 +9,7 @@ from src.database import Base
 class Team(Base):
     __tablename__ = "team"
 
-    id = Column(String, primary_key=True, default=str(uuid.uuid4))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     parent_team_id = Column(String, ForeignKey("team.id"), nullable=True)
     parent_team = relationship("Team", foreign_keys=[parent_team_id])

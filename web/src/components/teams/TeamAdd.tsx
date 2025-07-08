@@ -22,27 +22,59 @@ const schema = yup.object().shape({
   parentTeam: yup.string(),
 });
 
-export const TeamAdd = (
-  {
-    /* teams */
-  }
-) => {
+interface TeamAddProps {
+  teams?: Array<{ id: string; name: string }>;
+  onSuccess?: () => void;
+}
+
+export const TeamAdd = ({ teams = [], onSuccess }: TeamAddProps) => {
   const [formError, setFormError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const {
     control,
     reset,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: yupResolver(schema) });
+  } = useForm({ 
+    resolver: yupResolver(schema),
+    defaultValues: {
+      name: "",
+      parentTeam: "",
+    }
+  });
 
-  const onSubmit = handleSubmit((formData) => {
-    // Process formData as needed
-    console.log(formData);
-    setSuccess(true);
-    reset();
-    setTimeout(() => setSuccess(false), 2000);
+  const onSubmit = handleSubmit(async (formData) => {
+    setLoading(true);
+    setFormError(false);
+
+    try {
+      const response = await fetch("http://localhost:8000/teams", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer mysecrettoken123",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          parent_team_id: formData.parentTeam || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create team");
+      }
+
+      setSuccess(true);
+      reset();
+      setTimeout(() => setSuccess(false), 2000);
+      onSuccess?.();
+    } catch (error) {
+      setFormError(true);
+    } finally {
+      setLoading(false);
+    }
   });
 
   return (
@@ -53,7 +85,6 @@ export const TeamAdd = (
       <form onSubmit={onSubmit}>
         <Controller
           name="name"
-          defaultValue=""
           control={control}
           render={({ field }) => (
             <TextField fullWidth {...field} label="Name" />
@@ -66,15 +97,15 @@ export const TeamAdd = (
           <InputLabel>Parent team</InputLabel>
           <Controller
             name="parentTeam"
-            defaultValue=""
             control={control}
             render={({ field }) => (
               <Select {...field} label="Parent team">
-                {/*         {teams.map((team) => (
+                <MenuItem value="">Žádný nadřazený tým</MenuItem>
+                {teams.map((team) => (
                   <MenuItem key={team.id} value={team.id}>
                     {team.name}
                   </MenuItem>
-                ))} */}
+                ))}
               </Select>
             )}
           />
@@ -84,8 +115,8 @@ export const TeamAdd = (
           <FormFieldError text={errors.parentTeam.message} />
         )}
 
-        <Button type="submit" variant="contained" sx={{ my: 3 }}>
-          Add Team
+        <Button type="submit" variant="contained" sx={{ my: 3 }} disabled={loading}>
+          {loading ? "Přidávám..." : "Přidat tým"}
         </Button>
         {formError && <FormError text="Please fill out the form correctly" />}
         {success && <FormSuccess text="Team Added" />}

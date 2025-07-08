@@ -10,6 +10,7 @@ from src.dependencies import (
 )
 from src.models.employee import EmployeeService
 from src.models.team import TeamService
+from src.routers.employees import EmployeeResponseSchema
 
 
 class TeamBaseSchema(BaseModel):
@@ -18,6 +19,8 @@ class TeamBaseSchema(BaseModel):
 
 class TeamResponseSchema(TeamBaseSchema):
     id: str
+    parent_team_id: str | None = None
+    employees: list[EmployeeResponseSchema] = []
 
 
 class TeamCreateSchema(TeamBaseSchema):
@@ -38,10 +41,14 @@ async def list_teams(
     employee_service: EmployeeService = Depends(employee_service_factory),
 ):
     teams = team_service.read_all()
-    return [
-        dict(team._mapping) | {"employees": employee_service.read_all_by_team_id(team.id)}
-        for team in teams
-    ]
+    result = []
+    for team in teams:
+        team_dict = dict(team._mapping)
+        employees = employee_service.read_all_by_team_id(team.id)
+        employees_list = [dict(emp._mapping) for emp in employees]
+        team_dict["employees"] = employees_list
+        result.append(team_dict)
+    return result
 
 
 @router.post(

@@ -8,6 +8,7 @@ import {
   TextField,
   Typography,
   Button,
+  MenuItem,
 } from "@mui/material";
 import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -27,23 +28,67 @@ const schema = yup.object().shape({
     .min(yup.ref("startDate"), "End date can't be before start date"),
 });
 
-export const EmployeeAdd = (
-  {
-    /* teams */
-  }
-) => {
+interface EmployeeAddProps {
+  teams?: Array<{ id: string; name: string }>;
+  onSuccess?: () => void;
+}
+
+export const EmployeeAdd = ({ teams = [], onSuccess }: EmployeeAddProps) => {
   const [formError, setFormError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const {
     control,
     reset,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: yupResolver(schema) });
+  } = useForm({ 
+    resolver: yupResolver(schema),
+    defaultValues: {
+      name: "",
+      surname: "",
+      position: "",
+      team: "",
+      startDate: "",
+      endDate: "",
+    }
+  });
 
-  const onSubmit = handleSubmit((formData) => {
-    console.log(formData);
+  const onSubmit = handleSubmit(async (formData) => {
+    setLoading(true);
+    setFormError(false);
+
+    try {
+      const response = await fetch("http://localhost:8000/employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer mysecrettoken123",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          surname: formData.surname,
+          position: formData.position,
+          team_id: formData.team,
+          start_date: formData.startDate || null,
+          end_date: formData.endDate || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create employee");
+      }
+
+      setSuccess(true);
+      reset();
+      setTimeout(() => setSuccess(false), 2000);
+      onSuccess?.();
+    } catch (error) {
+      setFormError(true);
+    } finally {
+      setLoading(false);
+    }
   });
 
   return (
@@ -56,7 +101,6 @@ export const EmployeeAdd = (
           <Box sx={{ flex: { xs: "0 0 100%", md: "0 1 50%" } }}>
             <Controller
               name="name"
-              defaultValue=""
               control={control}
               render={({ field }) => (
                 <TextField fullWidth {...field} label="Name" />
@@ -69,7 +113,6 @@ export const EmployeeAdd = (
             <FormControl fullWidth>
               <Controller
                 name="surname"
-                defaultValue=""
                 control={control}
                 render={({ field }) => (
                   <TextField fullWidth {...field} label="Last Name" />
@@ -84,15 +127,14 @@ export const EmployeeAdd = (
           <InputLabel>Team</InputLabel>
           <Controller
             name="team"
-            defaultValue=""
             control={control}
             render={({ field }) => (
               <Select {...field} label="Team">
-                {/*                 {teams.map((team) => (
+                {teams.map((team) => (
                   <MenuItem key={team.id} value={team.id}>
                     {team.name}
                   </MenuItem>
-                ))} */}
+                ))}
               </Select>
             )}
           />
@@ -109,7 +151,6 @@ export const EmployeeAdd = (
           <Box sx={{ flex: { xs: "0 0 100%", md: "0 1 50%" } }}>
             <InputLabel>Start Date </InputLabel>
             <Controller
-              defaultValue={undefined}
               name="startDate"
               control={control}
               render={({ field }) => (
@@ -124,7 +165,6 @@ export const EmployeeAdd = (
           <Box sx={{ flex: { xs: "0 0 100%", md: "0 1 50%" } }}>
             <InputLabel>End Date </InputLabel>
             <Controller
-              defaultValue={undefined}
               name="endDate"
               control={control}
               render={({ field }) => (
@@ -136,7 +176,6 @@ export const EmployeeAdd = (
         </Stack>
         <Box mt={3}>
           <Controller
-            defaultValue=""
             name="position"
             control={control}
             rules={{ required: true }}
@@ -147,8 +186,8 @@ export const EmployeeAdd = (
           {errors.position && <FormFieldError text={errors.position.message} />}
         </Box>
 
-        <Button type="submit" variant="contained" sx={{ my: 3 }}>
-          Add employee
+        <Button type="submit" variant="contained" sx={{ my: 3 }} disabled={loading}>
+          {loading ? "Přidávám..." : "Přidat zaměstnance"}
         </Button>
         {formError && <FormError text="Please fill out the form correctly" />}
         {success && <FormSuccess text="Employee Added" />}

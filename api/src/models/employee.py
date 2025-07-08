@@ -10,7 +10,7 @@ from src.database import Base
 class Employee(Base):
     __tablename__ = "employee"
 
-    id = Column(String, primary_key=True, default=str(uuid.uuid4))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     surname = Column(String, nullable=False)
     position = Column(String, nullable=False)
@@ -50,5 +50,15 @@ class EmployeeService:
     def update(self):
         pass
 
-    def delete(self):
-        pass
+    def delete(self, employee_id):
+        query = f"DELETE FROM {self.model.__tablename__} WHERE id = '{employee_id}';"
+        self.session.execute(text(query))
+        self.session.commit()
+        return True
+
+    def bulk_delete(self, employee_ids):
+        ids_str = "', '".join(employee_ids)
+        query = f"DELETE FROM {self.model.__tablename__} WHERE id IN ('{ids_str}');"
+        self.session.execute(text(query))
+        self.session.commit()
+        return True
